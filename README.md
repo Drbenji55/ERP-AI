@@ -1,129 +1,102 @@
-# ERP-AI — AI-Powered ERP Automation with n8n
+# AI-ERP — Automation, AI Agents & RAG with n8n
 
-An educational ERP automation project that connects **n8n**, **AI agents**, **Airtable**, and **Telegram**. The current repository includes a manager-facing agent that can answer operational questions, search business records, and create tasks through natural-language conversation.
+A working mini-ERP for a fictional Israeli electronics business, automated end to end with **n8n Cloud**, **AI agents** and **RAG**. No servers, no Docker, nothing installed — the whole system is n8n Cloud plus Airtable. Built as a training project; every workflow is runnable and demoable.
 
-> **Portfolio note:** This is a learning-project implementation by the repository owner. It is based on the AI-ERP course project and architecture published by [Tomer Fooks](https://github.com/tomerfooks/ai-erp-n8n). See [Attribution](#attribution) for details.
-
-**[עברית](#erp-ai--אוטומציית-erp-מבוססת-ai-עם-n8n)**
-
-## What is included
-
-| Component | Purpose | Status |
-|---|---|---|
-| `6 - Manager Agent.json` | Importable n8n workflow for a Telegram-based manager agent | Included |
-| Telegram access check | Restricts the manager bot to the configured owner chat ID | Included |
-| AI manager | Answers in the user's language and uses connected tools | Included |
-| Airtable tools | Searches invoices and tasks and creates new tasks | Requires configuration |
-| Policy retrieval | Exposes an in-memory vector store to the agent as a retrieval tool | Requires indexed content |
-| Conversation memory | Keeps a short per-chat context window | Included |
-
-## Architecture
-
-```text
-Manager on Telegram
-        │
-        ▼
- Telegram Trigger ──▶ Owner Check ──▶ AI Manager Agent ──▶ Telegram Reply
-                                           │
-                       ┌───────────────────┼───────────────────┐
-                       ▼                   ▼                   ▼
-                Airtable Search     Create a Task       Policy Retrieval
-              invoices and tasks                         (vector store)
-```
-
-The agent is designed to use tools instead of relying only on model memory. That makes it suitable for questions about revenue, outstanding invoices, open tasks, and internal policies, while also allowing the manager to create a task from Telegram.
-
-## Technology
-
-`n8n` · `AI agent and tool calling` · `OpenAI-compatible chat model` · `RAG / vector store` · `Airtable` · `Telegram Bot API`
-
-## Getting started
-
-1. Download `6 - Manager Agent.json` from this repository.
-2. In n8n, choose **Import from File** and select the workflow JSON.
-3. Create your own Telegram bot and connect its credential in n8n.
-4. Connect your own Airtable and AI-provider credentials.
-5. Configure `OWNER_TELEGRAM_CHAT_ID` and `AIRTABLE_BASE_ID` in your n8n environment.
-6. Select the correct Airtable tables and map their fields in the three Airtable tools.
-7. Load your policy content into the vector store or replace it with a persistent vector database.
-8. Test every tool, then activate the workflow.
-
-Never publish API keys, access tokens, personal customer data, or production credentials. Credential references contained in an exported workflow must be remapped to credentials owned by the person deploying it.
-
-## Current limitations
-
-- The repository currently exposes the manager-agent workflow; the complete multi-workflow ERP suite is not included here.
-- Airtable table selection and field mapping must be adapted to the target base.
-- The included conversation memory and vector store are in-memory and are not intended for durable production storage.
-- The workflow is imported inactive and should be tested with non-production data before activation.
-- This is a portfolio and training project, not a production-ready ERP product.
-
-## Attribution
-
-This implementation was created as part of a learning project based on the concepts, requirements, and reference architecture taught and published by **Tomer Fooks** in [tomerfooks/ai-erp-n8n](https://github.com/tomerfooks/ai-erp-n8n). The README in this repository is original and describes the files that are actually present here.
+**[עברית ↓](#ai-erp--אוטומציה-סוכני-ai-ו-rag-עם-n8n)**
 
 ---
 
-# ERP-AI — אוטומציית ERP מבוססת AI עם n8n
+### How it works
 
-פרויקט לימודי לאוטומציית ERP המחבר בין **n8n**, **סוכני AI**, **Airtable** ו-**Telegram**. המאגר כולל כרגע סוכן מנהל שמקבל שאלות בשפה טבעית, מחפש מידע עסקי ויוצר משימות מתוך שיחת טלגרם.
-
-> **הערה לתיק העבודות:** זו מימוש לימודי של בעל המאגר, המבוסס על פרויקט ה-AI-ERP והארכיטקטורה שפרסם [Tomer Fooks](https://github.com/tomerfooks/ai-erp-n8n). פרטים נוספים נמצאים בסעיף [קרדיט ומקור](#קרדיט-ומקור).
-
-**[English](#erp-ai--ai-powered-erp-automation-with-n8n)**
-
-## מה כלול במאגר
-
-| רכיב | תפקיד | מצב |
-|---|---|---|
-| `6 - Manager Agent.json` | workflow לייבוא ל-n8n עבור סוכן מנהל בטלגרם | כלול |
-| בדיקת הרשאת טלגרם | מגבילה את הבוט למזהה הצ'אט של הבעלים | כלול |
-| סוכן מנהל | משיב בשפת המשתמש ומפעיל כלים מחוברים | כלול |
-| כלי Airtable | חיפוש חשבוניות ומשימות ויצירת משימה | דורש הגדרה |
-| שליפת נהלים | vector store בזיכרון שנחשף לסוכן ככלי RAG | דורש טעינת תוכן |
-| זיכרון שיחה | שומר חלון הקשר קצר ונפרד לכל צ'אט | כלול |
-
-## ארכיטקטורה
-
-```text
-מנהל בטלגרם
-      │
-      ▼
-Telegram Trigger ──▶ בדיקת בעלים ──▶ סוכן מנהל ──▶ תשובה בטלגרם
-                                          │
-                      ┌───────────────────┼───────────────────┐
-                      ▼                   ▼                   ▼
-             חיפוש ב-Airtable       יצירת משימה        שליפת נהלים
-             חשבוניות ומשימות                          (Vector Store)
+```
+  Telegram (manager)  ──┐                    ┌──▶ Airtable       (data)
+  Telegram (support)  ──┤                    ├──▶ Gmail          (sales email)
+  Gmail inbox         ──┼──▶  n8n Cloud  ───┼──▶ Google Drive   (documents + PDFs)
+  Schedules           ──┘  agents + RAG     └──▶ Telegram       (replies)
 ```
 
-הסוכן מתוכנן להפעיל כלים ולקבל מהם נתונים, ולא להסתמך רק על הידע של המודל. כך ניתן לשאול על הכנסות, חשבוניות פתוחות, משימות ונהלים פנימיים, וגם ליצור משימה חדשה ישירות מטלגרם.
+Airtable is the database (8 tables) and the UI. Documents are rendered to PDF and **stored in Google Drive** — never in the database. Chat and embeddings run on separate OpenAI-compatible endpoints set in n8n credentials, so both are swappable; the embeddings model is multilingual so Hebrew works. n8n Cloud supplies the public HTTPS URL, so the Telegram bots need no tunnel.
 
-## טכנולוגיות
+### The automations
 
-`n8n` · `סוכן AI ו-Tool Calling` · `מודל שיחה תואם OpenAI` · `RAG / Vector Store` · `Airtable` · `Telegram Bot API`
+| # | Workflow | Trigger | Demonstrates |
+|---|----------|---------|--------------|
+| 1 | Tax-Doc Validation | new Invoice / TaxInvoice / Receipt | Israeli VAT rules (18%, 17% before 2025), sequential doc numbers; valid → file queue, invalid → flagged |
+| 3 | Contact Intake | new Lead | Normalisation + de-duplication by email |
+| 4a | Sales Cold Emails | every 3h | LLM writes a personalised email, Gmail sends it, lead marked contacted |
+| 4b | Sales Reply Check | Gmail | Parse the reply, match the lead, agent drafts and sends an answer |
+| 5 | Customer Service Agent | Telegram | RAG agent — policies + products as retrieval tools, Hebrew and English |
+| 6 | Policies Embedding | manual | Documents → chunks → embeddings → vector store |
+| 7 | Products Embedding | manual | Same pipeline over the live catalogue |
+| 8 | Document Pipeline | every minute | Queue → RTL HTML → PDF → **Google Drive** |
+| 9 | Manager Agent | Telegram | Tool calling (`search_invoices`, `search_tasks`, `create_task`), owner-only |
+| 13 | UI Chat Webhook | webhook | Agent answers over an HTTP tool, synchronous response |
 
-## הפעלה ראשונית
+### The AI side
 
-1. מורידים מהמאגר את `6 - Manager Agent.json`.
-2. ב-n8n בוחרים **Import from File** ומייבאים את הקובץ.
-3. יוצרים בוט טלגרם אישי ומחברים את ה-credential שלו ב-n8n.
-4. מחברים credentials אישיים של Airtable ושל ספק ה-AI.
-5. מגדירים בסביבת n8n את `OWNER_TELEGRAM_CHAT_ID` ואת `AIRTABLE_BASE_ID`.
-6. בוחרים את טבלאות Airtable המתאימות וממפים את השדות בשלושת כלי Airtable.
-7. טוענים את מסמכי הנהלים ל-vector store, או מחליפים אותו במסד וקטורי קבוע.
-8. בודקים כל כלי בנפרד ורק לאחר מכן מפעילים את ה-workflow.
+- **Manager agent** — calls tools, can create records. Sender is authorised before the agent runs.
+- **Support agent** — pure RAG, so it can't invent a return policy.
+- **Sales agent** — one workflow writes and sends, another watches the inbox and replies.
 
-אין לפרסם מפתחות API, אסימוני גישה, נתוני לקוחות או credentials של סביבת ייצור. לאחר הייבוא יש למפות מחדש את כל הפניות ל-credentials לחשבונות של מי שמפעיל את המערכת.
+RAG: policy docs and the product catalogue are chunked, embedded and queried by the agents as a retrieval tool at answer time.
 
-## מגבלות נוכחיות
+### Stack
 
-- המאגר כולל כרגע את workflow סוכן המנהל; חבילת ה-ERP המלאה ורבת ה-workflows אינה נמצאת כאן.
-- יש להתאים את בחירת טבלאות Airtable ומיפוי השדות לבסיס הנתונים של ההתקנה.
-- זיכרון השיחה וה-vector store שב-workflow נשמרים בזיכרון ואינם אחסון קבוע לסביבת ייצור.
-- ה-workflow מיובא במצב לא פעיל ויש לבדוק אותו מול נתוני ניסוי לפני הפעלה.
-- זהו פרויקט לימודי ותיק עבודות, ולא מוצר ERP מוכן לסביבת ייצור.
+`n8n Cloud` · `AI agents & tool calling` · `RAG / vector store` · `Airtable` · `Telegram Bot API` · `Gmail + Drive APIs` · `OAuth 2.0`
 
-## קרדיט ומקור
+### Known limits
 
-המימוש נוצר כחלק מפרויקט לימודי המבוסס על הרעיונות, הדרישות וארכיטקטורת הייחוס של **Tomer Fooks**, כפי שפורסמו במאגר [tomerfooks/ai-erp-n8n](https://github.com/tomerfooks/ai-erp-n8n). ה-README במאגר זה נכתב מחדש ומתאר את הקבצים שנמצאים בו בפועל.
+Vector store and chat memory are in-memory (wiped on restart). No filesystem on Cloud, so policy documents and templates come from Drive or live inside the workflow. Airtable polls at ≥1 minute off a `Created` field. Sequential numbering can race inside one poll window. Relationships are string ids (`CUST-0001`), not links.
+
+---
+---
+
+# AI-ERP — אוטומציה, סוכני AI ו-RAG עם n8n
+
+מערכת ERP קטנה ועובדת לעסק אלקטרוניקה ישראלי (פיקטיבי), מאוטמת מקצה לקצה עם **n8n Cloud**, **סוכני AI** ו-**RAG**. בלי שרתים, בלי Docker, בלי שום התקנה — הכול n8n Cloud ו-Airtable. פרויקט לימודי; כל workflow רץ וניתן להדגמה.
+
+**[English ↑](#ai-erp--automation-ai-agents--rag-with-n8n)**
+
+---
+
+### איך זה עובד
+
+```
+  טלגרם (מנהל)   ──┐                     ┌──▶ Airtable       (נתונים)
+  טלגרם (שירות)  ──┤                     ├──▶ Gmail          (מיילי מכירות)
+  תיבת Gmail      ──┼──▶  n8n Cloud  ────┼──▶ Google Drive   (PDF של מסמכים)
+  תזמונים         ──┘  סוכנים + RAG      └──▶ Telegram       (תשובות)
+```
+
+Airtable הוא בסיס הנתונים (8 טבלאות) וגם הממשק. מסמכים מרונדרים ל-PDF ו**נשמרים ב-Google Drive** — לא בבסיס הנתונים. השיחה והאמבדינגס רצים על נקודות קצה נפרדות תואמות OpenAI שמוגדרות בקרדנצ׳יאלס של n8n, ולכן ניתנות להחלפה; מודל האמבדינגס רב-לשוני כדי שעברית תעבוד. n8n Cloud מספק כתובת HTTPS ציבורית, ולכן הבוטים בטלגרם לא צריכים מנהרה.
+
+### האוטומציות
+
+| # | Workflow | טריגר | מה זה מדגים |
+|---|----------|-------|--------------|
+| 1 | בדיקת מסמכי מס | חשבונית / חשבונית מס / קבלה חדשה | חוקי מע״מ ישראלי (18%, 17% לפני 2025), מספור רץ; תקין ← תור קבצים, פסול ← מסומן |
+| 3 | קליטת אנשי קשר | ליד חדש | נרמול וזיהוי כפילויות לפי אימייל |
+| 4a | מיילי מכירות קרים | כל 3 שעות | LLM מנסח מייל מותאם, Gmail שולח, הליד מסומן |
+| 4b | בדיקת תשובות | Gmail | פירוק התשובה, התאמה לליד, סוכן מנסח ושולח מענה |
+| 5 | סוכן שירות לקוחות | טלגרם | סוכן RAG — מדיניות ומוצרים ככלי שליפה, עברית ואנגלית |
+| 6 | אמבדינג מדיניות | ידני | מסמכים ← צ׳אנקים ← אמבדינג ← vector store |
+| 7 | אמבדינג מוצרים | ידני | אותו צינור מעל הקטלוג החי |
+| 8 | צינור מסמכים | כל דקה | תור ← HTML בעברית RTL ← PDF ← **Google Drive** |
+| 9 | סוכן מנהל | טלגרם | קריאה לכלים (`search_invoices`, `search_tasks`, `create_task`), לבעלים בלבד |
+| 13 | Webhook צ׳אט | webhook | סוכן עונה דרך כלי HTTP, תשובה סינכרונית |
+
+### הצד של ה-AI
+
+- **סוכן מנהל** — קורא לכלים, יכול ליצור רשומות. השולח מאומת לפני שהסוכן רץ.
+- **סוכן שירות** — RAG טהור, ולכן לא ממציא מדיניות החזרות.
+- **סוכן מכירות** — workflow אחד מנסח ושולח, שני עוקב אחרי התיבה ומשיב.
+
+RAG: מסמכי המדיניות והקטלוג נחתכים לצ׳אנקים, עוברים אמבדינג, והסוכנים מתשאלים אותם ככלי שליפה בזמן המענה.
+
+### סטאק
+
+`n8n Cloud` · `סוכני AI וקריאה לכלים` · `RAG / vector store` · `Airtable` · `Telegram Bot API` · `Gmail + Drive APIs` · `OAuth 2.0`
+
+### מגבלות ידועות
+
+ה-vector store וזיכרון השיחה בזיכרון בלבד (נמחקים באתחול). ב-Cloud אין מערכת קבצים, ולכן מסמכי המדיניות והתבניות מגיעים מ-Drive או יושבים בתוך ה-workflow. Airtable מתשאל כל דקה לפחות לפי שדה `Created`. מספור רץ עלול להתנגש באותו חלון polling. הקשרים הם מזהי מחרוזת (`CUST-0001`), לא קישורים.
