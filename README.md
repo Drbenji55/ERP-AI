@@ -1,102 +1,174 @@
-# AI-ERP — Automation, AI Agents & RAG with n8n
+# AI-ERP with n8n
 
-A working mini-ERP for a fictional Israeli electronics business, automated end to end with **n8n Cloud**, **AI agents** and **RAG**. No servers, no Docker, nothing installed — the whole system is n8n Cloud plus Airtable. Built as a training project; every workflow is runnable and demoable.
+A small, **learning-oriented** ERP for a fictional Israeli electronics business, built with **n8n**, **AI agents**, and **RAG**. Everything is deliberately simple: short workflows, nothing to install, nothing to run locally.
 
-**[עברית ↓](#ai-erp--אוטומציה-סוכני-ai-ו-rag-עם-n8n)**
-
----
-
-### How it works
-
-```
-  Telegram (manager)  ──┐                    ┌──▶ Airtable       (data)
-  Telegram (support)  ──┤                    ├──▶ Gmail          (sales email)
-  Gmail inbox         ──┼──▶  n8n Cloud  ───┼──▶ Google Drive   (documents + PDFs)
-  Schedules           ──┘  agents + RAG     └──▶ Telegram       (replies)
-```
-
-Airtable is the database (8 tables) and the UI. Documents are rendered to PDF and **stored in Google Drive** — never in the database. Chat and embeddings run on separate OpenAI-compatible endpoints set in n8n credentials, so both are swappable; the embeddings model is multilingual so Hebrew works. n8n Cloud supplies the public HTTPS URL, so the Telegram bots need no tunnel.
-
-### The automations
-
-| # | Workflow | Trigger | Demonstrates |
-|---|----------|---------|--------------|
-| 1 | Tax-Doc Validation | new Invoice / TaxInvoice / Receipt | Israeli VAT rules (18%, 17% before 2025), sequential doc numbers; valid → file queue, invalid → flagged |
-| 3 | Contact Intake | new Lead | Normalisation + de-duplication by email |
-| 4a | Sales Cold Emails | every 3h | LLM writes a personalised email, Gmail sends it, lead marked contacted |
-| 4b | Sales Reply Check | Gmail | Parse the reply, match the lead, agent drafts and sends an answer |
-| 5 | Customer Service Agent | Telegram | RAG agent — policies + products as retrieval tools, Hebrew and English |
-| 6 | Policies Embedding | manual | Documents → chunks → embeddings → vector store |
-| 7 | Products Embedding | manual | Same pipeline over the live catalogue |
-| 8 | Document Pipeline | every minute | Queue → RTL HTML → PDF → **Google Drive** |
-| 9 | Manager Agent | Telegram | Tool calling (`search_invoices`, `search_tasks`, `create_task`), owner-only |
-| 13 | UI Chat Webhook | webhook | Agent answers over an HTTP tool, synchronous response |
-
-### The AI side
-
-- **Manager agent** — calls tools, can create records. Sender is authorised before the agent runs.
-- **Support agent** — pure RAG, so it can't invent a return policy.
-- **Sales agent** — one workflow writes and sends, another watches the inbox and replies.
-
-RAG: policy docs and the product catalogue are chunked, embedded and queried by the agents as a retrieval tool at answer time.
-
-### Stack
-
-`n8n Cloud` · `AI agents & tool calling` · `RAG / vector store` · `Airtable` · `Telegram Bot API` · `Gmail + Drive APIs` · `OAuth 2.0`
-
-### Known limits
-
-Vector store and chat memory are in-memory (wiped on restart). No filesystem on Cloud, so policy documents and templates come from Drive or live inside the workflow. Airtable polls at ≥1 minute off a `Created` field. Sequential numbering can race inside one poll window. Relationships are string ids (`CUST-0001`), not links.
-
----
----
-
-# AI-ERP — אוטומציה, סוכני AI ו-RAG עם n8n
-
-מערכת ERP קטנה ועובדת לעסק אלקטרוניקה ישראלי (פיקטיבי), מאוטמת מקצה לקצה עם **n8n Cloud**, **סוכני AI** ו-**RAG**. בלי שרתים, בלי Docker, בלי שום התקנה — הכול n8n Cloud ו-Airtable. פרויקט לימודי; כל workflow רץ וניתן להדגמה.
-
-**[English ↑](#ai-erp--automation-ai-agents--rag-with-n8n)**
+The whole system is **n8n Cloud + Airtable**. Airtable is the database and the UI, n8n Cloud runs the automation, documents are rendered to PDF and stored in Google Drive. Nothing else — no Docker, no server, no local install.
 
 ---
 
-### איך זה עובד
+## What's in the box
+
+- **3 AI agents** — a **Manager** agent (owner-only, analytics + tasks), a **Customer Service** agent (customers, RAG-grounded), and a **Sales** agent (cold emails + reply heartbeat).
+- **9 n8n workflows** covering tax-document validation, contact intake, sales outreach, RAG embedding pipelines, and a PDF→Google-Drive pipeline.
+- **RAG** over the business policies + the product catalogue, using n8n's built-in vector store.
+- **Basic Israeli tax rules** — 18% VAT (17% before 2025-01-01), sequential document numbers, tax-invoice / receipt / invoice distinction.
+
+> **Data:** the project ships with **no pre-generated data**. `schema/schema.json` is the source of truth for the 8 tables; you build the tables and populate records yourself as you develop. The RAG policy docs live in `mock/policies/`.
+
+---
+
+## Architecture
 
 ```
-  טלגרם (מנהל)   ──┐                     ┌──▶ Airtable       (נתונים)
-  טלגרם (שירות)  ──┤                     ├──▶ Gmail          (מיילי מכירות)
-  תיבת Gmail      ──┼──▶  n8n Cloud  ────┼──▶ Google Drive   (PDF של מסמכים)
-  תזמונים         ──┘  סוכנים + RAG      └──▶ Telegram       (תשובות)
+                     ┌──────────────┐
+  Telegram bot #1 ──▶│              │──▶ Airtable  (the database)
+  (manager)          │              │
+  Telegram bot #2 ──▶│  n8n Cloud   │──▶ Gmail     (sales emails)
+  (customers)        │  + AI agents │──▶ Drive     (documents + PDFs)
+                     │  + vectorDB  │
+  Gmail  ───────────▶│              │
+  Schedules ────────▶└──────────────┘
+                            ▲
+                            │  chat model · embeddings model
 ```
 
-Airtable הוא בסיס הנתונים (8 טבלאות) וגם הממשק. מסמכים מרונדרים ל-PDF ו**נשמרים ב-Google Drive** — לא בבסיס הנתונים. השיחה והאמבדינגס רצים על נקודות קצה נפרדות תואמות OpenAI שמוגדרות בקרדנצ׳יאלס של n8n, ולכן ניתנות להחלפה; מודל האמבדינגס רב-לשוני כדי שעברית תעבוד. n8n Cloud מספק כתובת HTTPS ציבורית, ולכן הבוטים בטלגרם לא צריכים מנהרה.
+Everything runs inside n8n Cloud. It gives you a public HTTPS URL out of the box, so the Telegram bots and any webhook work with no tunnel and no port forwarding.
 
-### האוטומציות
+### Models
 
-| # | Workflow | טריגר | מה זה מדגים |
-|---|----------|-------|--------------|
-| 1 | בדיקת מסמכי מס | חשבונית / חשבונית מס / קבלה חדשה | חוקי מע״מ ישראלי (18%, 17% לפני 2025), מספור רץ; תקין ← תור קבצים, פסול ← מסומן |
-| 3 | קליטת אנשי קשר | ליד חדש | נרמול וזיהוי כפילויות לפי אימייל |
-| 4a | מיילי מכירות קרים | כל 3 שעות | LLM מנסח מייל מותאם, Gmail שולח, הליד מסומן |
-| 4b | בדיקת תשובות | Gmail | פירוק התשובה, התאמה לליד, סוכן מנסח ושולח מענה |
-| 5 | סוכן שירות לקוחות | טלגרם | סוכן RAG — מדיניות ומוצרים ככלי שליפה, עברית ואנגלית |
-| 6 | אמבדינג מדיניות | ידני | מסמכים ← צ׳אנקים ← אמבדינג ← vector store |
-| 7 | אמבדינג מוצרים | ידני | אותו צינור מעל הקטלוג החי |
-| 8 | צינור מסמכים | כל דקה | תור ← HTML בעברית RTL ← PDF ← **Google Drive** |
-| 9 | סוכן מנהל | טלגרם | קריאה לכלים (`search_invoices`, `search_tasks`, `create_task`), לבעלים בלבד |
-| 13 | Webhook צ׳אט | webhook | סוכן עונה דרך כלי HTTP, תשובה סינכרונית |
+Both are configured in their n8n credentials and swappable — nothing in the workflows is tied to a particular vendor.
 
-### הצד של ה-AI
+- **Chat** — any OpenAI-compatible endpoint. n8n's OpenAI nodes talk to it once you override the Base URL in the credential.
+  ⚠️ If you pick a *reasoning* model, never set a small `max_tokens`, or `content` comes back empty.
+- **Embeddings** — a separate OpenAI-compatible endpoint. Pick a **multilingual** model so Hebrew embeds properly. It's separate because a chat endpoint does not necessarily serve `/v1/embeddings` — check before assuming one endpoint covers both.
 
-- **סוכן מנהל** — קורא לכלים, יכול ליצור רשומות. השולח מאומת לפני שהסוכן רץ.
-- **סוכן שירות** — RAG טהור, ולכן לא ממציא מדיניות החזרות.
-- **סוכן מכירות** — workflow אחד מנסח ושולח, שני עוקב אחרי התיבה ומשיב.
+---
 
-RAG: מסמכי המדיניות והקטלוג נחתכים לצ׳אנקים, עוברים אמבדינג, והסוכנים מתשאלים אותם ככלי שליפה בזמן המענה.
+## Quick start
 
-### סטאק
+### 1. Get the accounts
 
-`n8n Cloud` · `סוכני AI וקריאה לכלים` · `RAG / vector store` · `Airtable` · `Telegram Bot API` · `Gmail + Drive APIs` · `OAuth 2.0`
+- an **n8n Cloud** workspace — <https://app.n8n.cloud>
+- an **Airtable** base + personal access token — [docs/01-airtable.md](docs/01-airtable.md)
+- **two Telegram bots** — [docs/02-telegram-bots.md](docs/02-telegram-bots.md)
+- **Google OAuth** for Gmail + Drive — [docs/03-google-oauth.md](docs/03-google-oauth.md)
+- a **chat** endpoint and an **embeddings** endpoint (any OpenAI-compatible ones)
 
-### מגבלות ידועות
+### 2. Build the Airtable base
 
-ה-vector store וזיכרון השיחה בזיכרון בלבד (נמחקים באתחול). ב-Cloud אין מערכת קבצים, ולכן מסמכי המדיניות והתבניות מגיעים מ-Drive או יושבים בתוך ה-workflow. Airtable מתשאל כל דקה לפחות לפי שדה `Created`. מספור רץ עלול להתנגש באותו חלון polling. הקשרים הם מזהי מחרוזת (`CUST-0001`), לא קישורים.
+Create the 8 tables from `schema/schema.json`, and add a `Created` "Created time" field to the trigger tables — the triggers need it. See [docs/01-airtable.md](docs/01-airtable.md). Populate records as you build.
+
+### 3. Add the credentials in n8n
+
+**Credentials → New**, one per service, named exactly as listed in [docs/04-workflows.md](docs/04-workflows.md).
+
+### 4. Build the workflows
+
+Build them in the n8n editor following [docs/04-workflows.md](docs/04-workflows.md).
+
+### 5. Fill the vector store
+
+Run **Policies Embedding** and **Products Embedding** by hand.
+⚠️ n8n's Simple Vector Store is **in-memory**: re-run both whenever your instance restarts.
+
+### 6. Try it
+
+- Message your **support bot**: *"מה מדיניות ההחזרות?"* or *"do you have wireless headphones?"*
+- Message your **manager bot**: *"what were earnings last month?"*, *"create a task to call supplier X"*
+- Create an Invoice row in Airtable → validation runs → a PDF lands in Drive.
+
+---
+
+
+
+## Repo layout
+
+```
+schema/schema.json     ← single source of truth (8 tables). Everything reads this.
+mock/policies/         ← policy/business-rule docs (*.md) for RAG — upload these to Drive
+templates/             ← invoice / receipt / quote HTML (RTL Hebrew)
+docs/                  ← step-by-step setup guides + canvas screenshots
+```
+
+Nothing here is deployed or executed. The repo holds the schema, the content the workflows consume, and the guides — the workflows themselves live in n8n Cloud.
+
+---
+
+## The workflows
+
+| # | Workflow | Trigger |
+|---|----------|---------|
+| 1 | Tax-doc validation → file queue | new Invoice / TaxInvoice / Receipt |
+| 3 | Contact intake + dedupe | new Lead |
+| 4a | Sales agent — cold emails | every 3 hours |
+| 4b | Sales agent — reply check | Gmail |
+| 5 | Customer service agent | Telegram bot #2 |
+| 6 | Policies → vector store | manual |
+| 7 | Products → vector store | manual |
+| 8 | Document → PDF → Google Drive (via Drive conversion) | every minute |
+| 9 | Manager agent | Telegram bot #1 |
+
+---
+
+---
+
+## Screenshots
+
+All of these are the live n8n Cloud canvases — the repo itself holds no runnable code.
+
+### WF9 — Manager agent (Telegram bot #1)
+
+Owner check → agent with the policy vector store plus Airtable tools (`search_tasks`, `create_task`, `search_invoices/tax/receipt`, `Create_Invoice`, `Create_Tax_Invoice`, `Create_Receipt`). Anyone who is not the owner falls to **Deny**.
+
+![WF9 manager agent canvas](docs/screenshots/09-manager-agent.png)
+
+The same workflow mid-run — green edges are the path a single Telegram message actually took:
+
+![WF9 manager agent, executed run](docs/screenshots/09-manager-agent-run.png)
+
+### WF5 — Customer service agent (Telegram bot #2)
+
+Telegram question → agent with two vector-store tools (policy search + product knowledge) → Telegram answer. Grounded in RAG, so it answers from the policies and the catalogue rather than from the model.
+
+![WF5 customer service agent canvas](docs/screenshots/05-customer-service.png)
+
+### WF1 — Tax-document validation
+
+Three Airtable triggers (Invoice / TaxInvoice / Receipt) share one **Validate** code node. Valid documents go to the file queue that WF8 picks up; invalid ones get marked on the record.
+
+![WF1 tax-document validation canvas](docs/screenshots/01-tax-doc-validation.png)
+
+### WF4a — Sales agent, cold emails
+
+Every 3 hours: search new leads → write the email with the chat model → send via Gmail → mark the lead contacted. ⚠️ This one sends real email.
+
+![WF4a cold-email canvas](docs/screenshots/04a-sales-cold-emails.png)
+
+### WF6 / WF7 — Embedding pipelines
+
+Both have the same shape: trigger → load documents → embed → Simple Vector Store. One splits long text into chunks first; the other loads short records straight in.
+
+![Embedding pipeline with a text splitter](docs/screenshots/06-07-embedding-split.png)
+
+![Embedding pipeline without a text splitter](docs/screenshots/06-07-embedding-plain.png)
+
+### Airtable dashboard
+
+The optional single-file `dashboard.html` — paste a base ID and a personal access token and it reads the tables straight from the Airtable API. It is **not** in the repo (it is gitignored, since a working copy holds a real token).
+
+![Airtable dashboard](docs/screenshots/dashboard.png)
+
+---
+
+## Known limitations (deliberate, for simplicity)
+
+- **The vector store and agent memory are in-memory** — both are wiped when the instance restarts. Re-run the two embedding workflows.
+- **No local files.** n8n Cloud has no filesystem you control, so anything the workflows read (policy documents, HTML templates) comes from Google Drive or lives inside the workflow itself.
+- **Airtable triggers poll at ≥1 minute**, and fire off a `Created time` field (Airtable has no true "on create" event).
+- **Sequential invoice numbering can race** if two documents are created inside the same poll window.
+- **Google OAuth in "Testing" mode** expires refresh tokens after 7 days.
+- **Relationships are string foreign keys** (`CUST-0001`), not Airtable links.
+
+## Docs
+
+1. [Airtable setup](docs/01-airtable.md) · 2. [Telegram bots](docs/02-telegram-bots.md) · 3. [Google OAuth](docs/03-google-oauth.md) · 4. [Building the workflows](docs/04-workflows.md)
