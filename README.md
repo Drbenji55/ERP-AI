@@ -47,21 +47,70 @@ The main path is deliberately short: receive a Telegram message, verify the owne
 
 ## Screenshots
 
-These screenshots were captured from a clean local n8n instance after importing the workflow JSON from this repository. External credentials were intentionally left disconnected, so the warning badges on integration nodes are expected.
+This gallery documents the broader final-project automation suite. The repository currently includes the Manager Agent JSON export; the final two screenshots verify that export in a clean local n8n instance.
 
-### Manager Agent canvas
+### 1. Sales Cold Email Automation
 
-Owner check → AI agent → policy retrieval and Airtable tools → Telegram reply. Unauthorized senders follow the separate **Deny** branch.
+Searches Airtable every three hours for newly added leads.<br>
+Drafts with AI, sends through Gmail, and marks each lead as contacted.
+
+![Sales cold email automation](docs/screenshots/04a-sales-cold-emails.png)
+
+### 2. Customer Service RAG Agent
+
+Receives customer questions from Telegram and routes them to a multilingual support agent.<br>
+Uses memory and vector search to ground answers in policies and product knowledge.
+
+![Customer service RAG agent](docs/screenshots/05-customer-service.png)
+
+### 3. Direct Embedding Pipeline
+
+Starts on form submission and loads a short document directly into the pipeline.<br>
+Creates embeddings and indexes the content in n8n's Simple Vector Store.
+
+![Direct embedding pipeline](docs/screenshots/06-07-embedding-plain.png)
+
+### 4. Manager Agent
+
+Authenticates the Telegram owner before granting access to operational tools.<br>
+Combines RAG with Airtable search and record creation, then replies in Telegram.
+
+![Manager agent workflow](docs/screenshots/09-manager-agent.png)
+
+### 5. Chunked Embedding Pipeline
+
+Loads longer documents and splits them into smaller semantic chunks.<br>
+Embeds every chunk and indexes it in the vector store for accurate retrieval.
+
+![Chunked embedding pipeline](docs/screenshots/06-07-embedding-split.png)
+
+### 6. Manager Agent — Executed Run
+
+Shows the authorized path executing successfully from Telegram to the AI agent.<br>
+The agent queries invoice data and returns one grounded response to the manager.
+
+![Manager agent executed run](docs/screenshots/09-manager-agent-run.png)
+
+### 7. Tax Document Validation
+
+Watches Airtable for new invoices, tax invoices, and receipts.<br>
+Valid records enter the file queue; invalid records are marked for review.
+
+![Tax document validation workflow](docs/screenshots/01-tax-doc-validation.png)
+
+### 8. Repository Import Verification
+
+Shows the repository's Manager Agent JSON after a clean local n8n import.<br>
+Verifies its nodes and connections without exposing credentials or live accounts.
 
 ![Manager Agent workflow imported into n8n](docs/screenshots/09-manager-agent-canvas.png)
 
-### Owner authorization gate
+### 9. Owner Authorization Condition
 
-The sender's Telegram chat ID is compared with `OWNER_TELEGRAM_CHAT_ID` before the message is allowed to reach the AI agent or its business tools.
+Compares the sender's chat ID with `OWNER_TELEGRAM_CHAT_ID` before AI runs.<br>
+Unauthorized requests follow the Deny branch and cannot reach business tools.
 
 ![Owner authorization condition in n8n](docs/screenshots/09-manager-agent-owner-check.png)
-
-> A mid-run screenshot is intentionally not included: producing one requires real Telegram, model, and Airtable credentials. Portfolio screenshots should show verified executions rather than simulated success states.
 
 ## Included capabilities
 
