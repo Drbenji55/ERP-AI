@@ -1,174 +1,155 @@
-# AI-ERP with n8n
+<p align="center">
+  <img src="docs/assets/erp-ai-hero.svg" alt="ERP-AI — secure manager agent for business operations" width="100%">
+</p>
 
-A small, **learning-oriented** ERP for a fictional Israeli electronics business, built with **n8n**, **AI agents**, and **RAG**. Everything is deliberately simple: short workflows, nothing to install, nothing to run locally.
+<h1 align="center">ERP-AI Manager Agent</h1>
 
-The whole system is **n8n Cloud + Airtable**. Airtable is the database and the UI, n8n Cloud runs the automation, documents are rendered to PDF and stored in Google Drive. Nothing else — no Docker, no server, no local install.
+<p align="center">
+  A portfolio project that turns Telegram into a natural-language interface for ERP operations.<br>
+  Built with n8n, AI tool calling, RAG, Airtable, and the Telegram Bot API.
+</p>
+
+<p align="center">
+  <img src="https://img.shields.io/badge/Automation-n8n-EA4B71?style=flat-square&logo=n8n&logoColor=white" alt="n8n">
+  <img src="https://img.shields.io/badge/Pattern-AI_Agent-6657E8?style=flat-square" alt="AI Agent">
+  <img src="https://img.shields.io/badge/Knowledge-RAG-16A394?style=flat-square" alt="RAG">
+  <img src="https://img.shields.io/badge/Data-Airtable-18BFFF?style=flat-square&logo=airtable&logoColor=white" alt="Airtable">
+  <img src="https://img.shields.io/badge/Interface-Telegram-26A5E4?style=flat-square&logo=telegram&logoColor=white" alt="Telegram">
+</p>
+
+<p align="center"><strong>English</strong> · <a href="#תקציר-בעברית">עברית</a></p>
 
 ---
 
-## What's in the box
+## Project overview
 
-- **3 AI agents** — a **Manager** agent (owner-only, analytics + tasks), a **Customer Service** agent (customers, RAG-grounded), and a **Sales** agent (cold emails + reply heartbeat).
-- **9 n8n workflows** covering tax-document validation, contact intake, sales outreach, RAG embedding pipelines, and a PDF→Google-Drive pipeline.
-- **RAG** over the business policies + the product catalogue, using n8n's built-in vector store.
-- **Basic Israeli tax rules** — 18% VAT (17% before 2025-01-01), sequential document numbers, tax-invoice / receipt / invoice distinction.
+ERP-AI is a learning and portfolio implementation of a **manager-facing AI agent** for a fictional Israeli electronics business. An authorized manager can message a Telegram bot in natural language, ask operational questions, search Airtable records, consult business policies, and create tasks.
 
-> **Data:** the project ships with **no pre-generated data**. `schema/schema.json` is the source of truth for the 8 tables; you build the tables and populate records yourself as you develop. The RAG policy docs live in `mock/policies/`.
+The repository currently contains one importable n8n workflow: [`6 - Manager Agent.json`](6%20-%20Manager%20Agent.json). The documentation below intentionally describes that implemented scope.
 
----
+### What the project demonstrates
 
-## Architecture
+- **Agentic workflow design** — an LLM selects and calls narrowly scoped business tools.
+- **Authorization before inference** — the sender is checked before the AI agent runs.
+- **Operational data access** — Airtable tools search invoices and tasks and create tasks.
+- **Retrieval-augmented answers** — a policy knowledge store is exposed as a retrieval tool.
+- **Conversation context** — memory is isolated by Telegram chat ID.
+- **Multilingual interaction** — the system prompt instructs the agent to reply in the manager's language.
+- **Human-safe behavior** — irreversible actions require confirmation in the agent instructions.
 
+## Workflow architecture
+
+<p align="center">
+  <img src="docs/assets/manager-agent-flow.svg" alt="Manager Agent workflow architecture" width="100%">
+</p>
+
+The main path is deliberately short: receive a Telegram message, verify the owner, let the agent use approved tools, and return the answer. AI capabilities are attached to the agent as explicit model, memory, retrieval, and Airtable-tool connections.
+
+## Included capabilities
+
+| Capability | Implementation | Repository status |
+|---|---|---|
+| Telegram manager interface | Telegram trigger and reply nodes | Included |
+| Owner-only access | Chat ID check before the agent | Included; requires configuration |
+| AI manager | n8n LangChain Agent with an OpenAI-compatible chat model | Included; requires credentials |
+| Invoice search | Airtable tool callable by the agent | Included; table mapping required |
+| Task search | Airtable tool callable by the agent | Included; table mapping required |
+| Task creation | Airtable create tool using `$fromAI()` parameters | Included; field mapping required |
+| Policy lookup | In-memory vector store exposed as `search_policies` | Included; knowledge must be loaded |
+| Short-term memory | Per-chat buffer window | Included; not persistent |
+
+## Example demo
+
+Once the workflow is connected to test data, a manager can ask:
+
+```text
+"Show me the outstanding invoices."
+"What open tasks do we have?"
+"Create a high-priority task to call the supplier."
+"What does our returns policy say?"
 ```
-                     ┌──────────────┐
-  Telegram bot #1 ──▶│              │──▶ Airtable  (the database)
-  (manager)          │              │
-  Telegram bot #2 ──▶│  n8n Cloud   │──▶ Gmail     (sales emails)
-  (customers)        │  + AI agents │──▶ Drive     (documents + PDFs)
-                     │  + vectorDB  │
-  Gmail  ───────────▶│              │
-  Schedules ────────▶└──────────────┘
-                            ▲
-                            │  chat model · embeddings model
-```
 
-Everything runs inside n8n Cloud. It gives you a public HTTPS URL out of the box, so the Telegram bots and any webhook work with no tunnel and no port forwarding.
+An unauthorized Telegram user follows the deny branch and never reaches the AI agent.
 
-### Models
+## Technology stack
 
-Both are configured in their n8n credentials and swappable — nothing in the workflows is tied to a particular vendor.
-
-- **Chat** — any OpenAI-compatible endpoint. n8n's OpenAI nodes talk to it once you override the Base URL in the credential.
-  ⚠️ If you pick a *reasoning* model, never set a small `max_tokens`, or `content` comes back empty.
-- **Embeddings** — a separate OpenAI-compatible endpoint. Pick a **multilingual** model so Hebrew embeds properly. It's separate because a chat endpoint does not necessarily serve `/v1/embeddings` — check before assuming one endpoint covers both.
-
----
+| Layer | Technology | Role |
+|---|---|---|
+| Orchestration | n8n | Triggers, branching, integrations, and execution |
+| AI | OpenAI-compatible chat and embedding nodes | Reasoning, tool selection, and embeddings |
+| Agent pattern | Tool calling + RAG | Grounded access to business data and policies |
+| Data | Airtable | Operational records for invoices and tasks |
+| Interface | Telegram Bot API | Manager conversation channel |
+| Memory | n8n Window Buffer Memory | Short per-chat conversational context |
 
 ## Quick start
 
-### 1. Get the accounts
+### Prerequisites
 
-- an **n8n Cloud** workspace — <https://app.n8n.cloud>
-- an **Airtable** base + personal access token — [docs/01-airtable.md](docs/01-airtable.md)
-- **two Telegram bots** — [docs/02-telegram-bots.md](docs/02-telegram-bots.md)
-- **Google OAuth** for Gmail + Drive — [docs/03-google-oauth.md](docs/03-google-oauth.md)
-- a **chat** endpoint and an **embeddings** endpoint (any OpenAI-compatible ones)
+- An n8n instance with the AI/LangChain nodes available
+- A Telegram bot token
+- An Airtable base with invoice and task tables
+- Chat-model and embedding-model credentials compatible with n8n's OpenAI nodes
 
-### 2. Build the Airtable base
+### Import and configure
 
-Create the 8 tables from `schema/schema.json`, and add a `Created` "Created time" field to the trigger tables — the triggers need it. See [docs/01-airtable.md](docs/01-airtable.md). Populate records as you build.
+1. Download [`6 - Manager Agent.json`](6%20-%20Manager%20Agent.json).
+2. In n8n, select **Import from File** and choose the downloaded JSON.
+3. Replace every imported credential reference with credentials from your own accounts.
+4. Configure `OWNER_TELEGRAM_CHAT_ID` and `AIRTABLE_BASE_ID`. The export currently reads them through `$env`; use environment variables on self-hosted n8n or adapt the expressions to the variable mechanism available in your n8n plan.
+5. Select the correct Airtable base, tables, and fields in `search_invoices`, `search_tasks`, and `create_task`.
+6. Load policy content into the vector store, or replace the in-memory store with a persistent vector database.
+7. Test the owner and deny paths with non-production data.
+8. Activate the workflow only after every tool returns the expected records.
 
-### 3. Add the credentials in n8n
+> [!IMPORTANT]
+> Never commit bot tokens, API keys, Airtable personal access tokens, customer data, or production credentials. Exported credential IDs are references only and must be remapped after import.
 
-**Credentials → New**, one per service, named exactly as listed in [docs/04-workflows.md](docs/04-workflows.md).
+## Repository layout
 
-### 4. Build the workflows
-
-Build them in the n8n editor following [docs/04-workflows.md](docs/04-workflows.md).
-
-### 5. Fill the vector store
-
-Run **Policies Embedding** and **Products Embedding** by hand.
-⚠️ n8n's Simple Vector Store is **in-memory**: re-run both whenever your instance restarts.
-
-### 6. Try it
-
-- Message your **support bot**: *"מה מדיניות ההחזרות?"* or *"do you have wireless headphones?"*
-- Message your **manager bot**: *"what were earnings last month?"*, *"create a task to call supplier X"*
-- Create an Invoice row in Airtable → validation runs → a PDF lands in Drive.
-
----
-
-
-
-## Repo layout
-
-```
-schema/schema.json     ← single source of truth (8 tables). Everything reads this.
-mock/policies/         ← policy/business-rule docs (*.md) for RAG — upload these to Drive
-templates/             ← invoice / receipt / quote HTML (RTL Hebrew)
-docs/                  ← step-by-step setup guides + canvas screenshots
+```text
+ERP-AI/
+├── 6 - Manager Agent.json    # Importable n8n workflow
+├── docs/assets/              # Original README visuals
+├── ai-erp-n8n-main.zip       # Legacy archive; not required by the workflow
+├── AGENTS.md                 # Repository guidance for coding agents
+└── README.md                 # Project documentation
 ```
 
-Nothing here is deployed or executed. The repo holds the schema, the content the workflows consume, and the guides — the workflows themselves live in n8n Cloud.
+## Design decisions
+
+- **Tools instead of broad database access:** the agent receives only the operations it needs.
+- **Authorization first:** rejected users do not consume model calls or reach business tools.
+- **Provider flexibility:** model nodes use OpenAI-compatible credentials and can be remapped.
+- **Simple portfolio deployment:** the workflow stays compact and can be demonstrated from Telegram.
+
+## Current limitations and next steps
+
+- `search_invoices` and `search_tasks` still need to be mapped to the correct Airtable tables for each deployment.
+- The policy vector store and chat memory are in-memory and are cleared when the n8n instance restarts.
+- The repository demonstrates the manager-agent workflow; it does not currently include the full multi-workflow ERP suite.
+- There are no automated integration tests because execution and credentials live in n8n.
+- Before production use, add durable vector storage, structured error handling, audit logging, least-privilege credentials, and explicit confirmation around write operations.
+
+## Attribution
+
+This implementation was developed as a learning project based on the course concepts and reference architecture published by **Tomer Fooks** in [`tomerfooks/jb-erp-ai`](https://github.com/tomerfooks/jb-erp-ai). This README and its diagrams are original and describe the files present in this repository.
 
 ---
 
-## The workflows
+## תקציר בעברית
 
-| # | Workflow | Trigger |
-|---|----------|---------|
-| 1 | Tax-doc validation → file queue | new Invoice / TaxInvoice / Receipt |
-| 3 | Contact intake + dedupe | new Lead |
-| 4a | Sales agent — cold emails | every 3 hours |
-| 4b | Sales agent — reply check | Gmail |
-| 5 | Customer service agent | Telegram bot #2 |
-| 6 | Policies → vector store | manual |
-| 7 | Products → vector store | manual |
-| 8 | Document → PDF → Google Drive (via Drive conversion) | every minute |
-| 9 | Manager agent | Telegram bot #1 |
+**ERP-AI** הוא פרויקט לימודי ותיק עבודות שמחבר בין Telegram, ‏n8n, ‏Airtable וסוכן AI. מנהל מורשה יכול לכתוב לבוט בשפה טבעית, לחפש חשבוניות ומשימות, להתייעץ עם מאגר נהלים וליצור משימות חדשות.
 
----
+המאגר כולל כרגע workflow אחד לייבוא ל‑n8n: [`6 - Manager Agent.json`](6%20-%20Manager%20Agent.json). ה‑workflow בודק את זהות השולח לפני הפעלת הסוכן, מחבר לסוכן כלי Airtable מוגדרים, זיכרון שיחה קצר וכלי RAG לשליפת נהלים, ושולח את התשובה בחזרה לטלגרם.
 
----
+### נקודות מרכזיות
 
-## Screenshots
+- אימות בעלים לפני הרצת מודל ה‑AI
+- Tool Calling לחיפוש נתונים וליצירת משימות
+- RAG עבור נהלים וידע עסקי
+- זיכרון שיחה נפרד לפי מזהה צ'אט
+- תמיכה בשיחה בעברית ובאנגלית
+- הפרדה בין יכולות קריאה וכתיבה באמצעות כלים ייעודיים
 
-All of these are the live n8n Cloud canvases — the repo itself holds no runnable code.
-
-### WF9 — Manager agent (Telegram bot #1)
-
-Owner check → agent with the policy vector store plus Airtable tools (`search_tasks`, `create_task`, `search_invoices/tax/receipt`, `Create_Invoice`, `Create_Tax_Invoice`, `Create_Receipt`). Anyone who is not the owner falls to **Deny**.
-
-![WF9 manager agent canvas](docs/screenshots/09-manager-agent.png)
-
-The same workflow mid-run — green edges are the path a single Telegram message actually took:
-
-![WF9 manager agent, executed run](docs/screenshots/09-manager-agent-run.png)
-
-### WF5 — Customer service agent (Telegram bot #2)
-
-Telegram question → agent with two vector-store tools (policy search + product knowledge) → Telegram answer. Grounded in RAG, so it answers from the policies and the catalogue rather than from the model.
-
-![WF5 customer service agent canvas](docs/screenshots/05-customer-service.png)
-
-### WF1 — Tax-document validation
-
-Three Airtable triggers (Invoice / TaxInvoice / Receipt) share one **Validate** code node. Valid documents go to the file queue that WF8 picks up; invalid ones get marked on the record.
-
-![WF1 tax-document validation canvas](docs/screenshots/01-tax-doc-validation.png)
-
-### WF4a — Sales agent, cold emails
-
-Every 3 hours: search new leads → write the email with the chat model → send via Gmail → mark the lead contacted. ⚠️ This one sends real email.
-
-![WF4a cold-email canvas](docs/screenshots/04a-sales-cold-emails.png)
-
-### WF6 / WF7 — Embedding pipelines
-
-Both have the same shape: trigger → load documents → embed → Simple Vector Store. One splits long text into chunks first; the other loads short records straight in.
-
-![Embedding pipeline with a text splitter](docs/screenshots/06-07-embedding-split.png)
-
-![Embedding pipeline without a text splitter](docs/screenshots/06-07-embedding-plain.png)
-
-### Airtable dashboard
-
-The optional single-file `dashboard.html` — paste a base ID and a personal access token and it reads the tables straight from the Airtable API. It is **not** in the repo (it is gitignored, since a working copy holds a real token).
-
-![Airtable dashboard](docs/screenshots/dashboard.png)
-
----
-
-## Known limitations (deliberate, for simplicity)
-
-- **The vector store and agent memory are in-memory** — both are wiped when the instance restarts. Re-run the two embedding workflows.
-- **No local files.** n8n Cloud has no filesystem you control, so anything the workflows read (policy documents, HTML templates) comes from Google Drive or lives inside the workflow itself.
-- **Airtable triggers poll at ≥1 minute**, and fire off a `Created time` field (Airtable has no true "on create" event).
-- **Sequential invoice numbering can race** if two documents are created inside the same poll window.
-- **Google OAuth in "Testing" mode** expires refresh tokens after 7 days.
-- **Relationships are string foreign keys** (`CUST-0001`), not Airtable links.
-
-## Docs
-
-1. [Airtable setup](docs/01-airtable.md) · 2. [Telegram bots](docs/02-telegram-bots.md) · 3. [Google OAuth](docs/03-google-oauth.md) · 4. [Building the workflows](docs/04-workflows.md)
+זהו פרויקט לימודי שנועד להדגמה ולתיק עבודות, ולא מערכת ERP מוכנה לייצור. לפני שימוש אמיתי יש להשלים מיפוי Airtable, אחסון וקטורי קבוע, טיפול בשגיאות, לוגים והרשאות מינימליות.
