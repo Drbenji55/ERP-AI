@@ -45,6 +45,24 @@ The repository currently contains one importable n8n workflow: [`6 - Manager Age
 
 The main path is deliberately short: receive a Telegram message, verify the owner, let the agent use approved tools, and return the answer. AI capabilities are attached to the agent as explicit model, memory, retrieval, and Airtable-tool connections.
 
+## Screenshots
+
+These screenshots were captured from a clean local n8n instance after importing the workflow JSON from this repository. External credentials were intentionally left disconnected, so the warning badges on integration nodes are expected.
+
+### Manager Agent canvas
+
+Owner check → AI agent → policy retrieval and Airtable tools → Telegram reply. Unauthorized senders follow the separate **Deny** branch.
+
+![Manager Agent workflow imported into n8n](docs/screenshots/09-manager-agent-canvas.png)
+
+### Owner authorization gate
+
+The sender's Telegram chat ID is compared with `OWNER_TELEGRAM_CHAT_ID` before the message is allowed to reach the AI agent or its business tools.
+
+![Owner authorization condition in n8n](docs/screenshots/09-manager-agent-owner-check.png)
+
+> A mid-run screenshot is intentionally not included: producing one requires real Telegram, model, and Airtable credentials. Portfolio screenshots should show verified executions rather than simulated success states.
+
 ## Included capabilities
 
 | Capability | Implementation | Repository status |
